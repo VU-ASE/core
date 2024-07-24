@@ -1,16 +1,15 @@
 # Service definition
-name: ChangeThisRepoName
-description: template-GoModule
+name: core
+description: Entry point for all services, used for service discovery and runtime tuning updates
 
 # No dependencies
 dependencies: []
 
-# No outputs (You'll probably want to update this or `dependencies`)
-outputs: []
-
-# Runtime options
-options:
-  - name: example_option
-    type: int     # Can be int, float, string, bool
-    mutable: true # Can be changed at runtime
-    default: 1    # Default value
+# Outputs
+outputs:
+  # request/reply model
+  - name: server
+    address: tcp://*:1337
+  # pub/sub model
+  - name: broadcast
+    address: tcp://*:1338

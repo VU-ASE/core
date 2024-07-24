@@ -1,31 +1,92 @@
 package main
 
 import (
+	"os"
+	"vu/ase/core/src/procutils"
+	"vu/ase/core/src/server"
+	"vu/ase/core/src/state"
+
 	pb_systemmanager_messages "github.com/VU-ASE/pkg-CommunicationDefinitions/v2/packages/go/systemmanager"
 	servicerunner "github.com/VU-ASE/pkg-ServiceRunner/v2/src"
-
 	"github.com/rs/zerolog/log"
 )
 
-func run(
-	service servicerunner.ResolvedService,
-	sysMan servicerunner.SystemManagerInfo,
-	initialTuning *pb_systemmanager_messages.TuningState) error {
+// Use as a global variable so that the onTerminate callback function can call it
+var systemState state.State
 
-	log.Info().Str("Planet", "Earth").Msg("Hello world")
+// The actual program
+func run(service servicerunner.ResolvedService, sysmanInfo servicerunner.SystemManagerInfo, initialTuningState *pb_systemmanager_messages.TuningState) error {
+	// Create the broadcast pub/sub socket
+	// first get the address to output on, defined in our service.yaml
+	broadcastAddr, err := service.GetOutputAddress("broadcast")
+	if err != nil {
+		return err
+	}
+	pubsubSocket, err := server.SetupBroadcast(broadcastAddr)
+	if err != nil {
+		return err
+	}
+	defer pubsubSocket.Close()
 
-	//TODO: Implement the service logic here. Likely this will involve creating a pub/sub and some main logic.
-	//      The de facto standard is to have some read (zmq/IO), some handling logic (may be several items),
-	//      and some write (zmq/IO). The go routines typically communicate via channels.
+	// Create the state, so that other services can use pubsubSocket
+	systemState = state.State{
+		Services:        make(state.ServiceList, 0),
+		PublisherSocket: pubsubSocket,
+		TuningState: &pb_systemmanager_messages.TuningState{
+			Timestamp:         0,
+			DynamicParameters: []*pb_systemmanager_messages.TuningState_Parameter{},
+		},
+	}
 
-	return nil
+	// Get the address to listen on, defined in our service.yaml
+	reqrepAddr, err := service.GetOutputAddress("server")
+	if err != nil {
+		return err
+	}
+
+	// We want the system manager to add its own service to the list of services, so that other services can find it
+	systemState.AddService(&pb_systemmanager_messages.Service{
+		Identifier: &pb_systemmanager_messages.ServiceIdentifier{
+			Name: service.Name,
+			Pid:  int32(os.Getpid()),
+		},
+		Endpoints: []*pb_systemmanager_messages.ServiceEndpoint{
+			{
+				Name:    "server",
+				Address: reqrepAddr,
+			},
+			{
+				Name:    "broadcast",
+				Address: broadcastAddr,
+			},
+		},
+		Status: pb_systemmanager_messages.ServiceStatus_RUNNING,
+	})
+
+	// Now run the main req/rep server loop, which can use the publisher socket to broadcast messages
+	return server.Serve(reqrepAddr, &systemState)
 }
 
-func onTuningState(newtuning *pb_systemmanager_messages.TuningState) {
-	log.Info().Str("Value", newtuning.String()).Msg("Received tuning state from system manager")
-	//TODO: Update this service based on the new tuning state
+func onTerminate(signal os.Signal) {
+	log.Info().Msg("Gracefully terminating system manager")
+
+	// send SIGTERM to all services
+	for _, service := range systemState.Services {
+		log.Info().Msgf("Killing '%v' process", service.Identifier.Name)
+		err := procutils.KillProcess(int(service.Identifier.Pid))
+		if err != nil {
+			log.Err(err).Msgf("Failed to kill '%v' process", service.Identifier.Name)
+		} else {
+			log.Info().Msgf("Killed '%v' process", service.Identifier.Name)
+		}
+	}
 }
 
+func onTuningState(newTuning *pb_systemmanager_messages.TuningState) {
+	// we ignore the tuning state, since we don't rely on any tuning parameters
+}
+
+// Used to start the program with the correct arguments
 func main() {
-	servicerunner.Run(run, onTuningState, false)
+	servicerunner.Run(run, onTuningState, onTerminate, true)
 }

@@ -2,7 +2,7 @@
 .PHONY: build start clean test
 
 BUILD_DIR=bin/
-BINARY_NAME=ChangeThisToRepoName
+BINARY_NAME=core
 
 build:
 	@echo "building ${BINARY_NAME}"
