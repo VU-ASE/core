@@ -8,7 +8,7 @@ import (
 	"vu/ase/core/src/procutils"
 	"vu/ase/core/src/services"
 
-	pb_systemmanager_messages "github.com/VU-ASE/pkg-CommunicationDefinitions/v2/packages/go/systemmanager"
+	pb_systemmanager_messages "github.com/VU-ASE/rovercom/packages/go/core"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/rs/zerolog/log"
 )

@@ -6,8 +6,8 @@ import (
 	"vu/ase/core/src/server"
 	"vu/ase/core/src/state"
 
-	pb_systemmanager_messages "github.com/VU-ASE/pkg-CommunicationDefinitions/v2/packages/go/systemmanager"
-	servicerunner "github.com/VU-ASE/pkg-ServiceRunner/v2/src"
+	pb_core_messages "github.com/VU-ASE/rovercom/packages/go/core"
+	roverlib "github.com/VU-ASE/roverlib/src"
 	"github.com/rs/zerolog/log"
 )
 
@@ -15,7 +15,7 @@ import (
 var systemState state.State
 
 // The actual program
-func run(service servicerunner.ResolvedService, sysmanInfo servicerunner.SystemManagerInfo, initialTuningState *pb_systemmanager_messages.TuningState) error {
+func run(service roverlib.ResolvedService, sysmanInfo roverlib.SystemManagerInfo, initialTuningState *pb_core_messages.TuningState) error {
 	// Create the broadcast pub/sub socket
 	// first get the address to output on, defined in our service.yaml
 	broadcastAddr, err := service.GetOutputAddress("broadcast")
@@ -32,9 +32,9 @@ func run(service servicerunner.ResolvedService, sysmanInfo servicerunner.SystemM
 	systemState = state.State{
 		Services:        make(state.ServiceList, 0),
 		PublisherSocket: pubsubSocket,
-		TuningState: &pb_systemmanager_messages.TuningState{
+		TuningState: &pb_core_messages.TuningState{
 			Timestamp:         0,
-			DynamicParameters: []*pb_systemmanager_messages.TuningState_Parameter{},
+			DynamicParameters: []*pb_core_messages.TuningState_Parameter{},
 		},
 	}
 
@@ -45,12 +45,12 @@ func run(service servicerunner.ResolvedService, sysmanInfo servicerunner.SystemM
 	}
 
 	// We want the system manager to add its own service to the list of services, so that other services can find it
-	systemState.AddService(&pb_systemmanager_messages.Service{
-		Identifier: &pb_systemmanager_messages.ServiceIdentifier{
+	systemState.AddService(&pb_core_messages.Service{
+		Identifier: &pb_core_messages.ServiceIdentifier{
 			Name: service.Name,
 			Pid:  int32(os.Getpid()),
 		},
-		Endpoints: []*pb_systemmanager_messages.ServiceEndpoint{
+		Endpoints: []*pb_core_messages.ServiceEndpoint{
 			{
 				Name:    "server",
 				Address: reqrepAddr,
@@ -60,7 +60,7 @@ func run(service servicerunner.ResolvedService, sysmanInfo servicerunner.SystemM
 				Address: broadcastAddr,
 			},
 		},
-		Status: pb_systemmanager_messages.ServiceStatus_RUNNING,
+		Status: pb_core_messages.ServiceStatus_RUNNING,
 	})
 
 	// Now run the main req/rep server loop, which can use the publisher socket to broadcast messages
@@ -82,11 +82,11 @@ func onTerminate(signal os.Signal) {
 	}
 }
 
-func onTuningState(newTuning *pb_systemmanager_messages.TuningState) {
+func onTuningState(newTuning *pb_core_messages.TuningState) {
 	// we ignore the tuning state, since we don't rely on any tuning parameters
 }
 
 // Used to start the program with the correct arguments
 func main() {
-	servicerunner.Run(run, onTuningState, onTerminate, true)
+	roverlib.Run(run, onTuningState, onTerminate, true)
 }

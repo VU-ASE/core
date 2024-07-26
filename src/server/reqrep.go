@@ -7,7 +7,7 @@ import (
 	"vu/ase/core/src/services"
 	"vu/ase/core/src/state"
 
-	pb_systemmanager_messages "github.com/VU-ASE/pkg-CommunicationDefinitions/v2/packages/go/systemmanager"
+	pb_core_messages "github.com/VU-ASE/rovercom/packages/go/core"
 
 	zmq "github.com/pebbe/zmq4"
 	"github.com/rs/zerolog/log"
@@ -52,9 +52,9 @@ func Serve(addr string, state *state.State) error {
 				log.Err(err).Msg("Failed to handle message")
 
 				// Send the error in a special error object that the client can handle
-				errMsg, err := proto.Marshal(&pb_systemmanager_messages.SystemManagerMessage{
-					Msg: &pb_systemmanager_messages.SystemManagerMessage_Error{
-						Error: &pb_systemmanager_messages.Error{
+				errMsg, err := proto.Marshal(&pb_core_messages.CoreMessage{
+					Msg: &pb_core_messages.CoreMessage_Error{
+						Error: &pb_core_messages.Error{
 							Message: err.Error(),
 						},
 					},
@@ -86,9 +86,9 @@ func Serve(addr string, state *state.State) error {
 }
 
 // Handles a message received by the server, and returns response message that should be send back to the client
-func handleMessage(msg []byte, state *state.State) (*pb_systemmanager_messages.SystemManagerMessage, error) {
+func handleMessage(msg []byte, state *state.State) (*pb_core_messages.CoreMessage, error) {
 	// Unmarshal the wrapper
-	parsedMessage := pb_systemmanager_messages.SystemManagerMessage{}
+	parsedMessage := pb_core_messages.CoreMessage{}
 	err := proto.Unmarshal(msg, &parsedMessage)
 	if err != nil {
 		return handleUnsupported()
@@ -100,8 +100,8 @@ func handleMessage(msg []byte, state *state.State) (*pb_systemmanager_messages.S
 	case parsedMessage.GetService() != nil:
 		{
 			res, err := handleServiceRegistration(parsedMessage.GetService(), state)
-			return &pb_systemmanager_messages.SystemManagerMessage{
-				Msg: &pb_systemmanager_messages.SystemManagerMessage_Service{
+			return &pb_core_messages.CoreMessage{
+				Msg: &pb_core_messages.CoreMessage_Service{
 					Service: res,
 				},
 			}, err
@@ -109,8 +109,8 @@ func handleMessage(msg []byte, state *state.State) (*pb_systemmanager_messages.S
 	case parsedMessage.GetServiceInformationRequest() != nil:
 		{
 			res := handleServiceInformationRequest(parsedMessage.GetServiceInformationRequest(), state)
-			return &pb_systemmanager_messages.SystemManagerMessage{
-				Msg: &pb_systemmanager_messages.SystemManagerMessage_Service{
+			return &pb_core_messages.CoreMessage{
+				Msg: &pb_core_messages.CoreMessage_Service{
 					Service: res,
 				},
 			}, nil
@@ -118,8 +118,8 @@ func handleMessage(msg []byte, state *state.State) (*pb_systemmanager_messages.S
 	case parsedMessage.GetServiceStatusUpdate() != nil:
 		{
 			res, err := handleServiceStatusUpdate(parsedMessage.GetServiceStatusUpdate(), state)
-			return &pb_systemmanager_messages.SystemManagerMessage{
-				Msg: &pb_systemmanager_messages.SystemManagerMessage_Service{
+			return &pb_core_messages.CoreMessage{
+				Msg: &pb_core_messages.CoreMessage_Service{
 					Service: res,
 				},
 			}, err
@@ -127,8 +127,8 @@ func handleMessage(msg []byte, state *state.State) (*pb_systemmanager_messages.S
 	case parsedMessage.GetTuningState() != nil:
 		{
 			res, err := handleTuningStateUpsert(parsedMessage.GetTuningState(), state)
-			return &pb_systemmanager_messages.SystemManagerMessage{
-				Msg: &pb_systemmanager_messages.SystemManagerMessage_TuningState{
+			return &pb_core_messages.CoreMessage{
+				Msg: &pb_core_messages.CoreMessage_TuningState{
 					TuningState: res,
 				},
 			}, err
@@ -136,8 +136,8 @@ func handleMessage(msg []byte, state *state.State) (*pb_systemmanager_messages.S
 	case parsedMessage.GetTuningStateRequest() != nil:
 		{
 			res, err := handleTuningStateRequest(state)
-			return &pb_systemmanager_messages.SystemManagerMessage{
-				Msg: &pb_systemmanager_messages.SystemManagerMessage_TuningState{
+			return &pb_core_messages.CoreMessage{
+				Msg: &pb_core_messages.CoreMessage_TuningState{
 					TuningState: res,
 				},
 			}, err
@@ -145,8 +145,8 @@ func handleMessage(msg []byte, state *state.State) (*pb_systemmanager_messages.S
 	case parsedMessage.GetServiceListRequest() != nil:
 		{
 			res, err := handleServiceListRequest(state)
-			return &pb_systemmanager_messages.SystemManagerMessage{
-				Msg: &pb_systemmanager_messages.SystemManagerMessage_ServiceList{
+			return &pb_core_messages.CoreMessage{
+				Msg: &pb_core_messages.CoreMessage_ServiceList{
 					ServiceList: res,
 				},
 			}, err
@@ -166,13 +166,13 @@ func handleMessage(msg []byte, state *state.State) (*pb_systemmanager_messages.S
 // REQ-REP endpoint handlers
 //
 
-func handleServiceRegistration(msg *pb_systemmanager_messages.Service, state *state.State) (*pb_systemmanager_messages.Service, error) {
+func handleServiceRegistration(msg *pb_core_messages.Service, state *state.State) (*pb_core_messages.Service, error) {
 	log.Debug().Msg("[reqrep]: handling service registration")
 
 	// Clean up all services that are no longer active
 	state.UpdateServiceStatusses()
 
-	msg.Status = pb_systemmanager_messages.ServiceStatus_REGISTERED
+	msg.Status = pb_core_messages.ServiceStatus_REGISTERED
 
 	// We can't register a service that is already registered (by name)
 	s := state.GetService(msg.Identifier.Name)
@@ -196,8 +196,8 @@ func handleServiceRegistration(msg *pb_systemmanager_messages.Service, state *st
 	state.AddService(msg)
 
 	// Broadcast the new service for everyone interested
-	err := BroadcastMessage(state.PublisherSocket, &pb_systemmanager_messages.SystemManagerMessage{
-		Msg: &pb_systemmanager_messages.SystemManagerMessage_Service{
+	err := BroadcastMessage(state.PublisherSocket, &pb_core_messages.CoreMessage{
+		Msg: &pb_core_messages.CoreMessage_Service{
 			Service: msg,
 		},
 	})
@@ -207,27 +207,27 @@ func handleServiceRegistration(msg *pb_systemmanager_messages.Service, state *st
 	return msg, nil
 }
 
-func handleServiceInformationRequest(msg *pb_systemmanager_messages.ServiceInformationRequest, state *state.State) *pb_systemmanager_messages.Service {
+func handleServiceInformationRequest(msg *pb_core_messages.ServiceInformationRequest, state *state.State) *pb_core_messages.Service {
 	log.Debug().Msg("[reqrep]: handling service information request")
 
 	requestedService := msg.GetRequested()
 	if requestedService == nil {
 		log.Warn().Msg("Received service information request without requested service")
-		return &pb_systemmanager_messages.Service{
-			Identifier: &pb_systemmanager_messages.ServiceIdentifier{
+		return &pb_core_messages.Service{
+			Identifier: &pb_core_messages.ServiceIdentifier{
 				Name: "unknown",
 				Pid:  0,
 			},
-			Status: pb_systemmanager_messages.ServiceStatus_UNKNOWN,
+			Status: pb_core_messages.ServiceStatus_UNKNOWN,
 		}
 	}
 
 	service := state.GetService(requestedService.Name)
 	if service == nil {
 		log.Warn().Str("service", requestedService.Name).Msg("Received service information request for unregistered service")
-		return &pb_systemmanager_messages.Service{
+		return &pb_core_messages.Service{
 			Identifier: requestedService,
-			Status:     pb_systemmanager_messages.ServiceStatus_NOT_REGISTERED,
+			Status:     pb_core_messages.ServiceStatus_NOT_REGISTERED,
 		}
 	}
 
@@ -237,14 +237,14 @@ func handleServiceInformationRequest(msg *pb_systemmanager_messages.ServiceInfor
 	return service
 }
 
-func handleServiceStatusUpdate(msg *pb_systemmanager_messages.ServiceStatusUpdate, state *state.State) (*pb_systemmanager_messages.Service, error) {
+func handleServiceStatusUpdate(msg *pb_core_messages.ServiceStatusUpdate, state *state.State) (*pb_core_messages.Service, error) {
 	log.Debug().Msg("[reqrep]: handling service status update")
 
 	//! there is no actual check if the sender is actually the service that is being updated
 	return state.UpdateServiceStatus(msg.Service.Name, msg.Service.Pid, msg.Status)
 }
 
-func handleTuningStateUpsert(msg *pb_systemmanager_messages.TuningState, state *state.State) (*pb_systemmanager_messages.TuningState, error) {
+func handleTuningStateUpsert(msg *pb_core_messages.TuningState, state *state.State) (*pb_core_messages.TuningState, error) {
 	log.Debug().Msg("[reqrep]: handling tuning state upsert")
 
 	mergedTuning := state.UpdateTuningState(msg)
@@ -256,8 +256,8 @@ func handleTuningStateUpsert(msg *pb_systemmanager_messages.TuningState, state *
 	log.Debug().Msgf("Tuning state updated, now has %d parameters", len(mergedTuning.DynamicParameters))
 
 	// Broadcast the new tuning state for everyone interested
-	err := BroadcastMessage(state.PublisherSocket, &pb_systemmanager_messages.SystemManagerMessage{
-		Msg: &pb_systemmanager_messages.SystemManagerMessage_TuningState{
+	err := BroadcastMessage(state.PublisherSocket, &pb_core_messages.CoreMessage{
+		Msg: &pb_core_messages.CoreMessage_TuningState{
 			TuningState: mergedTuning,
 		},
 	})
@@ -268,7 +268,7 @@ func handleTuningStateUpsert(msg *pb_systemmanager_messages.TuningState, state *
 	return mergedTuning, nil
 }
 
-func handleTuningStateRequest(state *state.State) (*pb_systemmanager_messages.TuningState, error) {
+func handleTuningStateRequest(state *state.State) (*pb_core_messages.TuningState, error) {
 	log.Debug().Msg("[reqrep]: handling tuning state request")
 
 	tuning := state.GetTuningState()
@@ -279,7 +279,7 @@ func handleTuningStateRequest(state *state.State) (*pb_systemmanager_messages.Tu
 	return tuning, nil
 }
 
-func handleServiceListRequest(state *state.State) (*pb_systemmanager_messages.ServiceList, error) {
+func handleServiceListRequest(state *state.State) (*pb_core_messages.ServiceList, error) {
 	log.Debug().Msg("[reqrep]: handling service list request")
 
 	state.UpdateServiceStatusses()
@@ -290,15 +290,15 @@ func handleServiceListRequest(state *state.State) (*pb_systemmanager_messages.Se
 	}
 
 	// marshal the service list
-	return &pb_systemmanager_messages.ServiceList{
+	return &pb_core_messages.ServiceList{
 		Services: services,
 	}, nil
 }
 
-func handleUnimplemented() (*pb_systemmanager_messages.SystemManagerMessage, error) {
+func handleUnimplemented() (*pb_core_messages.CoreMessage, error) {
 	return nil, fmt.Errorf("This endpoint is not implemented yet")
 }
 
-func handleUnsupported() (*pb_systemmanager_messages.SystemManagerMessage, error) {
+func handleUnsupported() (*pb_core_messages.CoreMessage, error) {
 	return nil, fmt.Errorf("This endpoint is not supported, or you provided an unsupported message")
 }

@@ -1,7 +1,7 @@
 package server
 
 import (
-	pb_systemmanager_messages "github.com/VU-ASE/pkg-CommunicationDefinitions/v2/packages/go/systemmanager"
+	pb_systemmanager_messages "github.com/VU-ASE/rovercom/packages/go/core"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
@@ -17,7 +17,7 @@ func SetupBroadcast(address string) (*zmq.Socket, error) {
 	return publisher, err
 }
 
-func BroadcastMessage(publisher *zmq.Socket, message *pb_systemmanager_messages.SystemManagerMessage) error {
+func BroadcastMessage(publisher *zmq.Socket, message *pb_systemmanager_messages.CoreMessage) error {
 	if publisher == nil {
 		log.Warn().Msg("Was asked to broadcast a message, but no publisher was set up. Ignoring.")
 		return nil

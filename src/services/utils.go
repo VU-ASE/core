@@ -3,7 +3,7 @@ package services
 import (
 	"vu/ase/core/src/procutils"
 
-	pb_systemmanager_messages "github.com/VU-ASE/pkg-CommunicationDefinitions/v2/packages/go/systemmanager"
+	pb_systemmanager_messages "github.com/VU-ASE/rovercom/packages/go/core"
 )
 
 // This function will check the current status of the service. This is done not only by checking the officially registered status, but also by checking if the process is still running.

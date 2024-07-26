@@ -1,7 +1,7 @@
 package state
 
 import (
-	pb_systemmanager_messages "github.com/VU-ASE/pkg-CommunicationDefinitions/v2/packages/go/systemmanager"
+	pb_systemmanager_messages "github.com/VU-ASE/rovercom/packages/go/core"
 )
 
 func findParameter(key string, params []*pb_systemmanager_messages.TuningState_Parameter) *pb_systemmanager_messages.TuningState_Parameter {

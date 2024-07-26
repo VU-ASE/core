@@ -4,7 +4,11 @@
 BUILD_DIR=bin/
 BINARY_NAME=core
 
-build:
+lint:
+	@echo "Lint check..."
+	@golangci-lint run
+
+build: lint
 	@echo "building ${BINARY_NAME}"
 	@cd src/ && go build -o "../$(BUILD_DIR)${BINARY_NAME}" ${buildargs}
 
@@ -22,5 +26,5 @@ clean:
 	@echo "Cleaning all targets for ${BINARY_NAME}"
 	rm -rf $(BUILD_DIR)
 
-test:
+test: lint
 	go test ./src -v -count=1 -timeout 0
