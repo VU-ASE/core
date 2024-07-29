@@ -15,7 +15,7 @@ import (
 var systemState state.State
 
 // The actual program
-func run(service roverlib.ResolvedService, sysmanInfo roverlib.SystemManagerInfo, initialTuningState *pb_core_messages.TuningState) error {
+func run(service roverlib.ResolvedService, coreInfo roverlib.CoreInfo, initialTuningState *pb_core_messages.TuningState) error {
 	// Create the broadcast pub/sub socket
 	// first get the address to output on, defined in our service.yaml
 	broadcastAddr, err := service.GetOutputAddress("broadcast")
