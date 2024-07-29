@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/VU-ASE/core/compare/v1.0.1...v1.0.2) (2024-07-29)
+
+
+### Bug Fixes
+
+* rename coreInfo ([291a22f](https://github.com/VU-ASE/core/commit/291a22fa6ac007b6097ddd8acf057c780cc2a40c))
+
 ## [1.0.1](https://github.com/VU-ASE/core/compare/v1.0.0...v1.0.1) (2024-07-26)
 
 
